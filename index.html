@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ya5t Trip 2026 - Organizer & Payment Tracker</title>
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti Library -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-ship"></i>
+                </div>
+                <div class="brand-text">
+                    <h1>Trip Organizer 2026</h1>
+                    <span class="subtitle">Ya5t • Transportation • Food Expenses</span>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <!-- Role / Admin Status Indicator -->
+                <div id="adminRoleStatus" class="role-status public-mode">
+                    <span class="role-badge" id="roleBadge"><i class="fa-solid fa-user-shield"></i> Public View</span>
+                    <button class="btn btn-sm btn-outline" id="adminLoginTriggerBtn">
+                        <i class="fa-solid fa-lock"></i> Admin Login
+                    </button>
+                    <button class="btn btn-sm btn-ghost hidden" id="adminLogoutBtn" title="Logout Admin">
+                        <i class="fa-solid fa-right-from-bracket"></i> Logout
+                    </button>
+                </div>
+
+                <button class="btn btn-outline" id="themeToggleBtn" title="Toggle Theme">
+                    <i class="fa-solid fa-moon"></i>
+                    <span id="themeToggleText">Dark Mode</span>
+                </button>
+
+                <button class="btn btn-secondary" id="exportCsvBtn" title="Export Submissions to CSV">
+                    <i class="fa-solid fa-file-csv"></i>
+                    <span>Export CSV</span>
+                </button>
+
+                <button class="btn btn-primary" id="openLogPaymentBtn">
+                    <i class="fa-solid fa-plus-circle"></i>
+                    <span>Submit Payment</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-layout">
+
+        <!-- Admin Pending Payments Banner (Visible if pending payments exist) -->
+        <div class="pending-banner hidden" id="pendingApprovalsBanner">
+            <div class="banner-content">
+                <i class="fa-solid fa-hourglass-half banner-icon"></i>
+                <div>
+                    <strong><span id="pendingCountText">0</span> Pending Payment(s) Awaiting Approval</strong>
+                    <p class="banner-subtext">Public payments must be approved by Admin (amr) before reflecting in trip balances.</p>
+                </div>
+            </div>
+            <button class="btn btn-sm btn-primary" id="openPendingModalBtn">
+                <i class="fa-solid fa-check-to-slot"></i> Review Pending
+            </button>
+        </div>
+
+        <!-- Top Stats Overview / KPI Cards -->
+        <section class="kpi-grid">
+            <div class="kpi-card total-budget">
+                <div class="kpi-header">
+                    <span class="kpi-title">Total Trip Target</span>
+                    <div class="kpi-icon"><i class="fa-solid fa-calculator"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiTotalTarget">13,700 <small>EGP</small></div>
+                <div class="kpi-subtext"><span id="kpiParticipantCount">11</span> Participants • 1,245 EGP / person</div>
+            </div>
+
+            <div class="kpi-card collected">
+                <div class="kpi-header">
+                    <span class="kpi-title">Total Collected (Approved)</span>
+                    <div class="kpi-icon"><i class="fa-solid fa-wallet"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiTotalCollected">2,200 <small>EGP</small></div>
+                <div class="kpi-subtext success-text">
+                    <i class="fa-solid fa-arrow-up"></i>
+                    <span id="kpiCollectedPercentage">16.1%</span> of budget collected
+                </div>
+            </div>
+
+            <div class="kpi-card remaining">
+                <div class="kpi-header">
+                    <span class="kpi-title">Outstanding (VS)</span>
+                    <div class="kpi-icon"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                </div>
+                <div class="kpi-value" id="kpiTotalRemaining">11,500 <small>EGP</small></div>
+                <div class="kpi-subtext warning-text">
+                    <i class="fa-solid fa-clock"></i>
+                    <span id="kpiUnpaidCount">11</span> members have pending balance
+                </div>
+            </div>
+
+            <div class="kpi-card progress-card">
+                <div class="kpi-header">
+                    <span class="kpi-title">Collection Progress</span>
+                    <div class="kpi-icon"><i class="fa-solid fa-chart-pie"></i></div>
+                </div>
+                <div class="progress-info">
+                    <span class="progress-percent" id="mainProgressPercent">16%</span>
+                    <span class="progress-ratio" id="mainProgressRatio">2,200 / 13,700 EGP</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="mainProgressBar" style="width: 16.1%;"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Two Column Layout: Main Content & Sidebar -->
+        <div class="content-grid">
+            
+            <!-- Left Main Column: Expenses & Participant Table -->
+            <div class="primary-column">
+                
+                <!-- Trip Expenses Breakdown -->
+                <section class="content-card expenses-section">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fa-solid fa-tags"></i>
+                            <h2>Trip Expenses Breakdown</h2>
+                        </div>
+                        <button class="btn btn-sm btn-ghost admin-only hidden" id="addExpenseBtn">
+                            <i class="fa-solid fa-plus"></i> Add Expense
+                        </button>
+                    </div>
+
+                    <div class="expenses-grid" id="expensesGrid">
+                        <!-- Dynamic Expense Cards will be rendered here -->
+                    </div>
+                </section>
+
+                <!-- Participants Payment Summary Table -->
+                <section class="content-card table-section">
+                    <div class="card-header table-header-flex">
+                        <div class="card-title">
+                            <i class="fa-solid fa-users"></i>
+                            <h2>Participant Balances</h2>
+                            <span class="badge badge-neutral" id="participantBadgeCount">11 Members</span>
+                        </div>
+
+                        <div class="table-controls">
+                            <!-- Search -->
+                            <div class="search-box">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="text" id="participantSearchInput" placeholder="Search participant...">
+                            </div>
+
+                            <!-- Filter -->
+                            <select id="statusFilterSelect" class="form-select-sm">
+                                <option value="ALL">All Statuses</option>
+                                <option value="PAID">Fully Paid</option>
+                                <option value="PARTIAL">Partially Paid</option>
+                                <option value="UNPAID">Unpaid</option>
+                            </select>
+
+                            <button class="btn btn-sm btn-outline admin-only hidden" id="addParticipantBtn" title="Add New Participant">
+                                <i class="fa-solid fa-user-plus"></i>
+                                <span>Add Member</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table class="data-table" id="participantsTable">
+                            <thead>
+                                <tr>
+                                    <th>Participant</th>
+                                    <th>Target Share</th>
+                                    <th>Collected</th>
+                                    <th>VS (Remaining)</th>
+                                    <th>Progress</th>
+                                    <th>Status</th>
+                                    <th class="text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="participantsTableBody">
+                                <!-- Rendered dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+            </div>
+
+            <!-- Right Sidebar: Log Payment Form & Recent History -->
+            <aside class="sidebar-column">
+                
+                <!-- Log Payment Form Card -->
+                <section class="content-card payment-form-card" id="paymentFormSection">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fa-solid fa-money-bill-transfer"></i>
+                            <h2>Submit a Payment</h2>
+                        </div>
+                        <span class="badge badge-primary" id="formRoleNotice">Needs Admin Approval</span>
+                    </div>
+
+                    <form id="paymentForm" class="payment-form">
+                        <!-- Participant Dropdown -->
+                        <div class="form-group">
+                            <label for="paymentParticipantSelect" class="form-label">
+                                <i class="fa-solid fa-user"></i> Select Your Name <span class="required">*</span>
+                            </label>
+                            <select id="paymentParticipantSelect" class="form-select" required>
+                                <option value="" disabled selected>-- Select Member --</option>
+                                <!-- Rendered dynamically -->
+                            </select>
+                        </div>
+
+                        <!-- Amount Input & Presets -->
+                        <div class="form-group">
+                            <label for="paymentAmountInput" class="form-label">
+                                <i class="fa-solid fa-coins"></i> Amount Paid (EGP) <span class="required">*</span>
+                            </label>
+                            <div class="input-with-symbol">
+                                <input type="number" id="paymentAmountInput" class="form-control" placeholder="e.g. 200" min="1" step="any" required>
+                                <span class="currency-symbol">EGP</span>
+                            </div>
+
+                            <div class="amount-presets">
+                                <button type="button" class="preset-btn" data-amount="100">+100</button>
+                                <button type="button" class="preset-btn" data-amount="200">+200</button>
+                                <button type="button" class="preset-btn" data-amount="500">+500</button>
+                                <button type="button" class="preset-btn" id="presetRemainingBtn" data-amount="1045">Full Remaining</button>
+                            </div>
+                        </div>
+
+                        <!-- Reason / Category -->
+                        <div class="form-group">
+                            <label for="paymentReasonSelect" class="form-label">
+                                <i class="fa-solid fa-list-check"></i> Reason / Note <span class="required">*</span>
+                            </label>
+                            <select id="paymentReasonSelect" class="form-select">
+                                <option value="General Trip Share">General Trip Share</option>
+                                <option value="Ya5t Deposit">Ya5t (Yacht) Deposit</option>
+                                <option value="Transportation">Transportation Share</option>
+                                <option value="Food & Drinks">Food & Drinks Share</option>
+                                <option value="Installment 1">Installment 1</option>
+                                <option value="Installment 2">Installment 2</option>
+                                <option value="Custom">Other (Custom Note)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group hidden" id="customReasonGroup">
+                            <input type="text" id="paymentCustomReasonInput" class="form-control" placeholder="Type custom reason...">
+                        </div>
+
+                        <!-- Payment Method & Date -->
+                        <div class="form-row">
+                            <div class="form-group col-6">
+                                <label for="paymentMethodSelect" class="form-label">
+                                    <i class="fa-solid fa-credit-card"></i> Method
+                                </label>
+                                <select id="paymentMethodSelect" class="form-select">
+                                    <option value="InstaPay / Bank">InstaPay / Bank</option>
+                                    <option value="Cash">Cash</option>
+                                    <option value="Vodafone Cash">Vodafone Cash</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group col-6">
+                                <label for="paymentDateInput" class="form-label">
+                                    <i class="fa-solid fa-calendar-day"></i> Date
+                                </label>
+                                <input type="date" id="paymentDateInput" class="form-control">
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" class="btn btn-primary btn-block btn-lg" id="submitPaymentBtn">
+                            <i class="fa-solid fa-paper-plane"></i> Submit Payment
+                        </button>
+                        <small class="form-help text-center" style="display:block; margin-top:0.25rem;">
+                            Payments will be reviewed and approved by Amr.
+                        </small>
+                    </form>
+                </section>
+
+                <!-- Approved Payments History Ledger -->
+                <section class="content-card ledger-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                            <h2>Approved Transactions</h2>
+                        </div>
+                        <span class="badge badge-neutral" id="ledgerCountBadge">0 Payments</span>
+                    </div>
+
+                    <div class="ledger-list" id="ledgerList">
+                        <!-- Rendered dynamically -->
+                    </div>
+                </section>
+
+            </aside>
+        </div>
+    </main>
+
+    <!-- Modal: Admin Login -->
+    <div class="modal-backdrop" id="adminLoginModal">
+        <div class="modal-dialog" style="max-width: 380px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-user-shield"></i> Admin Login</h3>
+                <button class="modal-close" id="closeAdminLoginModal">&times;</button>
+            </div>
+            <form id="adminLoginForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label" for="adminUsernameInput">Username</label>
+                        <input type="text" id="adminUsernameInput" class="form-control" placeholder="amr" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="adminPasswordInput">Password</label>
+                        <input type="password" id="adminPasswordInput" class="form-control" placeholder="••••" required>
+                    </div>
+                    <div id="loginErrorMsg" class="hidden warning-text" style="font-size:0.8rem;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Invalid admin username or password!
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" id="cancelAdminLoginBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-right-to-bracket"></i> Login as Admin</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Review Pending Payments (Admin Only) -->
+    <div class="modal-backdrop" id="pendingModal">
+        <div class="modal-dialog" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-hourglass-half"></i> Pending Payments Approval</h3>
+                <button class="modal-close" id="closePendingModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="pendingListContainer">
+                    <!-- Rendered dynamically by JS -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" id="closePendingModalBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add / Edit Participant -->
+    <div class="modal-backdrop" id="participantModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 id="participantModalTitle"><i class="fa-solid fa-user-gear"></i> Participant Details</h3>
+                <button class="modal-close" id="closeParticipantModal">&times;</button>
+            </div>
+            <form id="participantForm">
+                <div class="modal-body">
+                    <input type="hidden" id="editParticipantId">
+                    <div class="form-group">
+                        <label class="form-label" for="participantNameInput">Participant Name <span class="required">*</span></label>
+                        <input type="text" id="participantNameInput" class="form-control" placeholder="e.g. Mahmoud" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="participantTargetInput">Target Share (EGP)</label>
+                        <input type="number" id="participantTargetInput" class="form-control" value="1245" min="0" step="any">
+                        <small class="form-help">Default target per person is 1,245 EGP.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" id="cancelParticipantBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Add / Edit Trip Expense -->
+    <div class="modal-backdrop" id="expenseModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 id="expenseModalTitle"><i class="fa-solid fa-pen-to-square"></i> Trip Expense Item</h3>
+                <button class="modal-close" id="closeExpenseModal">&times;</button>
+            </div>
+            <form id="expenseForm">
+                <div class="modal-body">
+                    <input type="hidden" id="editExpenseId">
+                    <div class="form-group">
+                        <label class="form-label" for="expenseTitleInput">Expense Title <span class="required">*</span></label>
+                        <input type="text" id="expenseTitleInput" class="form-control" placeholder="e.g. Snacks & Ice" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="expenseAmountInput">Total Estimated Amount (EGP) <span class="required">*</span></label>
+                        <input type="number" id="expenseAmountInput" class="form-control" placeholder="e.g. 1500" min="1" step="any" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="expenseIconInput">Icon</label>
+                        <select id="expenseIconInput" class="form-select">
+                            <option value="fa-ship">🚢 Yacht / Boat</option>
+                            <option value="fa-bus">🚌 Transportation</option>
+                            <option value="fa-utensils">🍽️ Food & Catering</option>
+                            <option value="fa-umbrella-beach">🏖️ Beach & Resort</option>
+                            <option value="fa-music">🎵 Entertainment</option>
+                            <option value="fa-concierge-bell">🛎️ Service & Tips</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" id="cancelExpenseBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Expense</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
