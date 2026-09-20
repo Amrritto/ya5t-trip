@@ -50,6 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
         theme: localStorage.getItem('trip_theme') || 'dark'
     };
 
+    let isSyncing = false;
+
     // --- Dynamic Auto-Distribution Function ---
     // Sums all trip expenses, counts participants, and divides equally per person!
     function autoDistributeExpenses() {
@@ -149,15 +151,64 @@ document.addEventListener('DOMContentLoaded', () => {
     updateRoleUI();
 
     // --- State Persistence ---
-    function saveState() {
-        autoDistributeExpenses(); // Automatically recalculate equal shares whenever state changes!
+    function getSharedState() {
+        return {
+            expenses: state.expenses,
+            participants: state.participants,
+            payments: state.payments,
+            pendingPayments: state.pendingPayments
+        };
+    }
+
+    function cacheSharedState() {
         localStorage.setItem('trip_expenses', JSON.stringify(state.expenses));
         localStorage.setItem('trip_participants', JSON.stringify(state.participants));
         localStorage.setItem('trip_payments', JSON.stringify(state.payments));
         localStorage.setItem('trip_pending_payments', JSON.stringify(state.pendingPayments));
+    }
+
+    async function saveState() {
+        autoDistributeExpenses(); // Automatically recalculate equal shares whenever state changes!
+        cacheSharedState();
         localStorage.setItem('trip_theme', state.theme);
         sessionStorage.setItem('trip_is_admin', state.isAdmin ? 'true' : 'false');
         render();
+
+        try {
+            const response = await fetch('/api/state', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(getSharedState())
+            });
+            if (!response.ok) throw new Error('Shared state save failed');
+        } catch (error) {
+            showToast('Saved on this device, but the shared server is unavailable.', 'danger');
+        }
+    }
+
+    async function syncStateFromServer() {
+        if (isSyncing) return;
+        isSyncing = true;
+        try {
+            const response = await fetch('/api/state', { cache: 'no-store' });
+            if (response.status === 404) {
+                await saveState();
+                return;
+            }
+            if (!response.ok) throw new Error('Shared state load failed');
+            const sharedState = await response.json();
+            state.expenses = sharedState.expenses;
+            state.participants = sharedState.participants;
+            state.payments = sharedState.payments;
+            state.pendingPayments = sharedState.pendingPayments;
+            autoDistributeExpenses();
+            cacheSharedState();
+            render();
+        } catch (error) {
+            console.warn('Shared state sync unavailable:', error);
+        } finally {
+            isSyncing = false;
+        }
     }
 
     function getParticipantCollected(participantId) {
@@ -823,4 +874,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     render();
+    syncStateFromServer();
+    setInterval(syncStateFromServer, 3000);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) syncStateFromServer();
+    });
 });
